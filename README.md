@@ -1,4 +1,4 @@
-Based on nialltl's (https://youtu.be/GVvhlTvR8rU) 2D implementation of MLS-MPM: (https://github.com/nialltl/incremental_mpm).
+Based on nialltl's (https://twitter.com/nialltl) 2D implementation of MLS-MPM: (https://github.com/nialltl/incremental_mpm).
 
 Expanded to 3D and added liquid rendering techniques based on this Nvidia paper: https://developer.download.nvidia.com/presentations/2010/gdc/Direct3D_Effects.pdf
 
