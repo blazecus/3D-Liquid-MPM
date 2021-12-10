@@ -12,6 +12,8 @@ using System.Runtime.InteropServices;
 
 public class DFluid : MonoBehaviour
 {
+    [SerializeField] GameObject sphereObject;
+
     struct Particle
     {
         public float3 x; // position
@@ -28,7 +30,7 @@ public class DFluid : MonoBehaviour
         public float padding; // unused
     }
 
-    const int grid_res = 64;
+    const int grid_res = 32;
     const int num_cells = grid_res * grid_res * grid_res;
     const int division = 128; // job system batch size, chosen experimentally
 
@@ -57,13 +59,16 @@ public class DFluid : MonoBehaviour
     const float mouse_radius = 10;
     bool mouse_down = false;
     float2 mouse_pos;
+    float3 sphere_pos;
 
     void Start()
     {
+        if (Camera.main.depthTextureMode != DepthTextureMode.Depth)
+            Camera.main.depthTextureMode = DepthTextureMode.Depth;
         // populate our array of particles from the samples given, set their initial state
         List<float3> temp_positions = new List<float3>();
         const float spacing = 0.5f;
-        const int box_x = 32, box_y = 32, box_z = 32;
+        const int box_x = 16, box_y = 16, box_z = 16;
         const float sx = grid_res / 2.0f, sy = grid_res / 2.0f, sz = grid_res / 2.0f;
         for (float i = sx - box_x / 2; i < sx + box_x / 2; i += spacing)
         {
@@ -110,6 +115,8 @@ public class DFluid : MonoBehaviour
 
     private void Update()
     {
+        //sphere_pos = (new float3(sphereObject.transform.position.x, sphereObject.transform.position.y, sphereObject.transform.position.z) * 10f + new float3(32,32,32)) * grid_res;
+        sphere_pos = sphereObject.transform.position;
         HandleMouseInteraction();
 
         for (int i = 0; i < sim_iterations; ++i)
@@ -127,7 +134,9 @@ public class DFluid : MonoBehaviour
         {
             mouse_down = true;
             var mp = Camera.main.ScreenToViewportPoint(Input.mousePosition);
+            //sphereObject.transform.position = (new float3(mp.x, mp.y, 0) - new float3(32, 32, 32)) *0.1f;
             mouse_pos = math.float2(mp.x * grid_res, mp.y * grid_res);
+            sphereObject.transform.position = new float3(mouse_pos.x, mouse_pos.y, 0);
         }
     }
 
@@ -173,7 +182,8 @@ public class DFluid : MonoBehaviour
             ps = ps,
             grid = grid,
             mouse_down = mouse_down,
-            mouse_pos = mouse_pos
+            mouse_pos = mouse_pos,
+            sphere_pos = sphere_pos
         }.Schedule(num_particles, division).Complete();
         Profiler.EndSample();
     }
@@ -234,7 +244,7 @@ public class DFluid : MonoBehaviour
                             // MPM course, equation 172
                             float mass_contrib = weight * p.mass;
 
-                            int cell_index = (int)cell_x.x * grid_res + (int)cell_x.y;
+                            int cell_index = (int)cell_x.x * grid_res * grid_res + (int)cell_x.y * grid_res + (int)cell_x.z;
                             Cell cell = grid[cell_index];
 
                             // mass and momentum update
@@ -379,6 +389,7 @@ public class DFluid : MonoBehaviour
         [ReadOnly] public NativeArray<Cell> grid;
         [ReadOnly] public bool mouse_down;
         [ReadOnly] public float2 mouse_pos;
+        [ReadOnly] public float3 sphere_pos;
 
         public void Execute(int i)
         {
@@ -435,11 +446,20 @@ public class DFluid : MonoBehaviour
             if (mouse_down)
             {
                 var dist = p.x - new float3(mouse_pos.x, mouse_pos.y, 0);
+                
                 if (math.dot(dist, dist) < mouse_radius * mouse_radius)
                 {
                     var force = math.normalizesafe(dist, 0) * 1.0f;
                     p.v += force;
                 }
+            }            
+
+            var dist_sphere = p.x - sphere_pos;
+
+            if (math.dot(dist_sphere, dist_sphere) < mouse_radius * mouse_radius)
+            {
+                var force = math.normalizesafe(dist_sphere, 0) * 1.0f;
+                p.v += force;
             }
 
             // boundaries
@@ -457,6 +477,7 @@ public class DFluid : MonoBehaviour
             // as we never use it in our constitutive equation
 
             ps[i] = p;
+            //Debug.Log(p.x);
         }
     }
     #endregion
