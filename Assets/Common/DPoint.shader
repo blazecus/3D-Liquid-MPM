@@ -80,16 +80,16 @@ Shader "Instanced/DPoint" {
             }
 
             fixed4 frag(v2f i) : SV_Target{
-                float d = length(_WorldSpaceCameraPos - i.world_pos);
-                //float d = Linear01Depth(tex2D(_CameraDepthTexture, i.screen_pos.xy).r);
+                //float d = length(_WorldSpaceCameraPos - i.world_pos);
+                float d = Linear01Depth(tex2D(_CameraDepthTexture, i.screen_pos.xy).r);
                 //float d = tex2D(_CustomDepthTexture, i.screen_pos.xy).r;
                 //float3 n;
                 //float d;
                 //DecodeDepthNormal(tex2D(_CameraDepthNormalsTexture, i.screen_pos.xy),d,n);
                 
-                float4 col = float4(d / 50, d / 50, d / 50 + .5, 1);
+                //float4 col = float4(d / 50, d / 50, d / 50 + .5, 1);
                 //float4 col = float4(.4,.4,.9, .7);
-                //float4 col = float4(d,d,d, 1);
+                float4 col = float4(d,d,d, 1);
                 //return float4(d/50,d/50,d/50, 1);
                 float3 normalDirection = normalize(i.normal);
                 float3 viewDirection = normalize(_WorldSpaceCameraPos - i.world_pos.xyz);
@@ -113,6 +113,36 @@ Shader "Instanced/DPoint" {
                 }
                 float3 color = (ambientLighting + diffuseReflection) * col +specularReflection; //Texture is not applient on specularReflection
                 return float4(color, 1.0);
+            }
+            ENDCG
+        }
+        Pass
+        {
+            Tags{ "LightMode" = "ShadowCaster" }
+            Name "Shadow Cast"
+
+            CGPROGRAM
+            #pragma vertex vert
+            #pragma fragment frag
+            #pragma multi_compile_shadowcaster
+
+            #include "UnityCG.cginc"
+
+            struct v2f
+            {
+                V2F_SHADOW_CASTER;
+            };
+
+            v2f vert(appdata_base v)
+            {
+                v2f o;
+                TRANSFER_SHADOW_CASTER_NORMALOFFSET(o);
+                return o;
+            }
+
+            fixed4 frag(v2f i) : SV_Target
+            {
+                SHADOW_CASTER_FRAGMENT(i);
             }
             ENDCG
         }
